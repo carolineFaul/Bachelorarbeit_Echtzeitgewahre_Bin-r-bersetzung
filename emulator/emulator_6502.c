@@ -1164,12 +1164,7 @@ load_program_from_file(char* filename, int size, int offset){
 
 int
 main (void){
-	// int8_t program[] = {0xA9, 0xAA, 0x2A, 0x6A, 0x00};
-	// load_into_memory(program, 5);
-
-	load_program_from_file("../test_better/TTL6502.BIN", 65536, 0xe000);
+	load_program_from_file("../Ruud_Baltissen_Tests/TTL6502.BIN", 65536, 0xe000);
 	
 	return emulate_6502();
-
-//	return 0;
 }
