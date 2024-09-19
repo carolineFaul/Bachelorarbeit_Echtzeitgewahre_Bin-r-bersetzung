@@ -1,8 +1,8 @@
 CC=gcc
-CFLAGS=-Wall -g -DAVR -DWCET
+CFLAGS=-Wall -g -DC -DWCET
 RM=rm
 
-translator: translator.c 6502_instructions_avr.c 6502_instructions.h
+translator: translator.c 6502_instructions_c.c 6502_instructions.h
 	$(CC) $(CFLAGS) -o $@ $^
 
 clean:

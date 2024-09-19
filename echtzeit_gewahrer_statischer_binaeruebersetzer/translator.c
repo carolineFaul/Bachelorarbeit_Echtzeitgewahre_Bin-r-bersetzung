@@ -89,7 +89,6 @@ uint8_t defs;
 uint8_t uses;
 uint8_t usedRegisters;
 uint8_t optimization;
-char cRepresentation [1024];
 void (*used_helper_functions[9])(void) = {NULL};
 uint16_t cycles;
 
@@ -139,13 +138,10 @@ resolve_address_to_index_in_codeblocks(uint16_t address){
 }
 
 //identify leaders: leader == Label or first instruction of code block
-//identify end of CodeBlock: branch or jump
-//uint16_t branch_addresses[2048];
-//int number_of_branches;
-
 uint16_t leader_addresses[2048];
 int number_of_leaders;
 
+//basic block ends with jump or branch or IO or next leader
 uint16_t basicblock_startaddresses[2048];
 int number_of_basicblocks;
 
@@ -546,7 +542,6 @@ compute_optimization(void){
 		changed = 0;
 		compute_LV(resolve_address_to_index_in_codeblocks(endBlock), checked, checked_blocks);
 	}
-	//compute_LV(resolve_address_to_index_in_codeblocks(endBlock), checked, checked_blocks);
 }
 
 /* Code for printing */
@@ -591,7 +586,6 @@ set_needed_flags(uint8_t index){
 	uint16_t addressNextBlock = codeblocks[index].end + bytes;
 	uint8_t nextBlock = resolve_address_to_index_in_codeblocks(addressNextBlock);
 	//calculate flags killed by current intruction UNION (flags used by next code block UNION next instructions - flags killed by next instructions)
-	//defs = codeblocks[index].kill & ((usesNextInstructions | codeblocks[nextBlock].gen) & ~(defsNextInstructions));
 	defs = codeblocks[index].defs[start] & ((usesNextInstructions | codeblocks[nextBlock].gen) & ~(defsNextInstructions));
 		
 	//set for AVR Optimization also used flags by next instructions and block in usese Variable for elimitating set_missing_flags optimization
@@ -645,10 +639,6 @@ print_code_representation(void){
 			uint8_t opcode = m[pc];
 #endif
                         get_next_instruction();
-
-                        /*if(is_branch_instruction(m[pc])){
-                                printf("\t cycles += %d;\n", cycles);
-                        }*/
                         index = resolve_address_to_index_in_codeblocks(pc);
 #if C
 			if((opcode == 0x20) && (is_leader(pc) == -1)){
@@ -726,10 +716,6 @@ print_optimized_code_representation(void){
 #endif
 
                         get_next_instruction();
-
-                        /*if(is_branch_instruction(m[pc])){
-                                printf("\t cycles += %d;\n", cycles);
-                        }*/
                         index = resolve_address_to_index_in_codeblocks(pc);
 #if C
                         if((opcode == 0x20) && (is_leader(pc) == -1)){
@@ -773,7 +759,6 @@ print_optimized_code_representation(void){
 			continue;
                 }
 
-//		set_needed_flags(index);
                 get_next_instruction();
 		set_needed_flags(index);
         }
@@ -786,25 +771,7 @@ print_code(uint16_t lastPC){
 	toSet = IR;
 	cycles = 0;
 	print_prolog();
-
-	//printf("#define ROM_START %d\n\n", lastPC);
-	
 	print_global_vars_and_functions();
-
-	/*uint16_t size = MAX_ROM - MIN_ROM;
-	printf("uint8_t rom[%d] = {", size);
-	for(int i = 0; i < size-1; i++){
-		printf("%d,", m[0xf000 + i]);
-	}
-	printf("%d};\n\n", m[0xf000 + (size-1)]);*/
-	
-	/*uint16_t size = MAX_ROM - lastPC;
-	printf("uint8_t rom[%d] = {", size);
-        for(int i = 0; i < size-1; i++){
-                printf("%d,", m[lastPC + i]);
-        }
-        printf("%d};\n\n", m[0xf000 + (size-1)]);*/
-
 	print_used_helper_function_by_program();
 	print_main();
 
@@ -857,95 +824,18 @@ main(void){
 	rriot_addr = 0;
 
 	optimization = 1; // 1 optimization, 0 no optimization
-	/* load binary or array into memory */
-	//load_program_from_file("RRIOT_ROM", 1024, MIN_RRIOT_ROM);
 	
-	/* Clock Test */
-	//load_program_from_file("clock_new.bin", 4096, 0xf000);
-	//load_program_from_file("clock.bin", 4096, 0xf000);
-	
-	//load_program_from_file("add.bin", 4096, 0xf000);
-	//load_program_from_file("display.bin", 4096,0xf000);
-	//load_program_from_file("abc_delay.bin", 4096, 0xf000);
-	//load_program_from_file("abc_delay_new.bin", 4096, 0xf000);
-	
-	//load_program_from_file("abc_300.bin", 4096, 0xf000);
-
-	load_program_from_file("abc_300R.bin", 4096, 0xf000);
-
-	m[0xffc6] = 0x0;
-        m[0xffc7] = 0x77;
-        m[0xffc8] = 0x7c;
-        m[0xffc9] = 0x39;
-        m[0xffca] = 0x5e;
-        m[0xffcb] = 0x79;
-        m[0xffcc] = 0x71;
-        m[0xffcd] = 0x3d;
-        m[0xffce] = 0x3e;
-        m[0xffcf] = 0x00;
+	/* Alphabet Programm with Delay */
+	//load_program_from_file("abc_300R.bin", 4096, 0xf000);
         
 	/* ABC Test */
 	/*uint8_t test_program[] = {0x18, 0xA9, 0x41, 0x8D, 0x00, 0x8b, 0x69, 0x01, 0xC9, 0x5B, 0x90, 0xF7, 0x00};
-        int size = 13;*/
-	//0x50 is BVC
-	//uint8_t test_program[] = {0x69, 0x01, 0xC9, 0x5b, 0x50, 0xfc, 0x00};
-	//int size = 7;
-	
-	//LDA 0x1, STA RAM, ADC RAM, STA ZEROPAGE, ASL ZEROPAGE, ADC ZEROPAGE 
-	//uint8_t test_program[] = {0xA9, 0x01, 0x8d, 0x00, 0x8c, 0x6d, 0x00, 0x8c, 0x8d, 0x01, 0x00, 0x0e, 0x01, 0x00, 0x6d, 0x01, 0x00};
-	//int size = 17;
-	
-	//absolute ROM: 0xf000, absolute RAM: 0x8b80, zeropage: 0x0001
-	
-	/*A: uint8_t test_program[] = {0xA9, 0x01, 0x8d, 0x00, 0x8b, 0x8d, 0x01, 0x00,
-	0x6d, 0x00, 0xf0, 0x6d, 0x80, 0x8b, 0x6d, 0x01, 0x00,
-	0x2d, 0x00, 0xf0, 0x2d, 0x80, 0x8b, 0x2d, 0x01, 0x00,
-	0x0e, 0x80, 0x8b, 0x0e, 0x01, 0x00};
-       	int size = 32;*/
+        int size = 13;
+	load_into_memory(test_program, size, 0xf000);*/
 
-	/* C */
-	/*uint8_t test_program[] = {0xA9, 0x01, 0x8d, 0x00, 0x8b, 0x8d, 0x01, 0x00,
-		0xcd, 0x00, 0xf0, 0xcd, 0x80, 0x8b, 0xcd, 0x01, 0x00,
-		0xec, 0x00, 0xf0, 0xec, 0x80, 0x8b, 0xec, 0x01, 0x00,
-		0xcc, 0x00, 0xf0, 0xcc, 0x80, 0x8b, 0xcc, 0x01, 0x00};
-	int size = 35;*/
-
-	/* D / E / I */
-	/*uint8_t test_program[] = {0xA9, 0x01, 0x8d, 0x00, 0x8b, 0x8d, 0x01, 0x00,
-		0xce, 0x00, 0xf0, 0xce, 0x80, 0x8b, 0xce, 0x01, 0x00,
-		0x4d, 0x00, 0xf0, 0x4d, 0x80, 0x8b, 0x4d, 0x01, 0x00,
-		0xee, 0x00, 0xf0, 0xee, 0x80, 0x8b, 0xee, 0x01, 0x00};
-	int size = 35;*/
-
-	/* L / O */
-	/*uint8_t test_program[] = {0xA9, 0x01, 0x8d, 0x00, 0x8b, 0x8d, 0x01, 0x00,
-		0xad, 0x00, 0xf0, 0xad, 0x80, 0x8b, 0xad, 0x01, 0x00,
-		0xae, 0x00, 0xf0, 0xae, 0x80, 0x8b, 0xae, 0x01, 0x00,
-		0xac, 0x00, 0xf0, 0xac, 0x80, 0x8b, 0xac, 0x01, 0x00,
-		0x4e, 0x00, 0xf0, 0x4e, 0x80, 0x8b, 0x4e, 0x01, 0x00,
-		0x0d, 0x00, 0xf0, 0x0d, 0x80, 0x8b, 0x0d, 0x01, 0x00};
-	int size = 53;*/
-
-	/* R / S */
-	/*uint8_t test_program[] = {0xA9, 0x01, 0x8d, 0x00, 0x8b, 0x8d, 0x01, 0x00,
-		0x2e, 0x00, 0xf0, 0x2e, 0x80, 0x8b, 0x2e, 0x01, 0x00,
-		0x6e, 0x00, 0xf0, 0x6e, 0x80, 0x8b, 0x6e, 0x01, 0x00,
-		0xed, 0x00, 0xf0, 0xed, 0x80, 0x8b, 0xed, 0x01, 0x00,
-		0x8e, 0x00, 0xf0, 0x8e, 0x80, 0x8b, 0x8e, 0x01, 0x00,
-		0x8c, 0x00, 0xf0, 0x8c, 0x80, 0x8b, 0x8c, 0x01, 0x00};
-	int size = 53;*/
-
-	//TODO BIT
-/*	uint8_t test_program[] = {0x65, 0x01, 0x25, 0x01, 0x06, 0x1, 0xc5, 0x01, 0xe4, 0x01, 0xc4, 0x01, 0xc6, 0x1, 0x45, 0x1, 0xe6, 0x1,
-	0xa5, 0x01, 0xa6, 0x01, 0xa4, 0x01, 0x46, 0x1, 0x5, 0x1, 0x26, 0x1, 0x66, 0x01, 0xe5, 0x1, 0x85, 0x1, 0x86, 0x1, 0x84, 0x1};
-	int size = 40;*/
-
-/*	uint8_t test_program[] = {0x69, 0x01, 0x65, 0x01, 0x75, 0x1, 0x6d, 0x80, 0x8b, 0x7d, 0x10, 0xf0, 0x79, 0x80, 0x8b};
-        int size = 15; ADC all Addressing Modes*/
-
-	/*uint8_t test_program[] = {0x20, 0xdc, 0xf6, 0x4c, 0x7f, 0xf6, 0xa2, 0x06, 0x86, 0x48, 0x60};
+	uint8_t test_program[] = {0x20, 0xdc, 0xf6, 0x4c, 0x7f, 0xf6, 0xa2, 0x06, 0x86, 0x48, 0x60};
 	int size = 11;
-	load_into_memory(test_program, size, 0xf6d6);*/
+	load_into_memory(test_program, size, 0xf6d6);
 
 	/* analyse binary */
 	uint16_t lastPC = find_leaders_and_branches();

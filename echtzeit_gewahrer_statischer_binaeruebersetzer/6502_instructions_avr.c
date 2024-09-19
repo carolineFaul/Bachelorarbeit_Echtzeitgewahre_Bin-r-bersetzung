@@ -24,13 +24,9 @@ extern uint8_t defs;
 extern uint8_t uses;
 extern uint8_t usedRegisters;
 extern uint8_t optimization;
-extern char cRepresentation [1024];
 extern uint16_t cycles;
+
 /* communication for printing */
-enum{FALSE,TRUE};
-
-int dynamic = FALSE;
-
 uint16_t rriot_rom[1024];
 uint16_t rriot_addr;
 uint16_t rom_addresses[4096];
@@ -38,7 +34,7 @@ uint16_t rom_addr;
 
 uint16_t jsr_counter;
 uint16_t jsr[2048];
-//TODO add and sub should be deleted
+
 extern void (*used_helper_functions[9])(void);
 int helperFunctions = 0;
 
@@ -139,21 +135,6 @@ call_corresponding_addressingMode(uint8_t opcode){
                         indirect();
                         return;
         };
-}
-
-int
-is_dynamic(uint16_t address){
-	//address is in RAM
-	uint8_t page = address >> 8;
-	if(page == 0x00 || page == 0x01){
-		//address is in zeropage or stack
-		return TRUE;
-	}
-	if((address >= RRIOT_RAM_START) && (address < RRIOT_ROM_START)){
-		//address is in RRIOT RAM
-		return TRUE;
-	}
-	return FALSE;
 }
 
 int 
@@ -309,7 +290,6 @@ print_main(void){
         printf("\t set_up_timer(0);\n");
 	printf("\t sei();\n");
 	printf("\t uint8_t temp = 0;\n");
-//	printf("\t sei();\n");
         printf("\t cycles = 0;\n");
 	if(optimization){
         	if(usedRegisters & (1 << RA)){
@@ -400,41 +380,6 @@ set_missing_flags(uint8_t reg){
                 }
 
 	}
-
-
-/*	if(!optimization || (!((uses & (1 << VF)) || (uses & (1 << CF))))){
-		if((uses & (1 << VF)) && (!((uses & (1 << CF))))){
-			//only VF used
-			printf("\t __asm__ volatile(\"bst %%0, 3\" : : \"r\"(SREG));\n");	
-		}else if((uses & (1 << CF)) && (!((uses & (1 << VF))))){
-			//only CF used
-			printf("\t __asm__ volatile(\"bst %%0, 0\" : : \"r\"(SREG));\n");
-		}else{
-			//both used
-			printf("\t temp = SREG;\n");
-		}
-	}
-	if(reg == RA){
-		printf("\t __asm__ volatile(\"cp %%0, %%1\" : \"=r\"(ra) : \"r\"((uint8_t)0));\n");
-	}else if(reg == RX) {
-		printf("\t __asm__ volatile(\"cp %%0, %%1\" : \"=r\"(rx) : \"r\"((uint8_t)0));\n");
-	}else{
-		printf("\t __asm__ volatile(\"cp %%0, %%1\" : \"=r\"(ry) : \"r\"((uint8_t)0));\n");
-	}
-	if(!optimization || (!((uses & (1 << VF)) || (uses & (1 << CF))))){
-		if((uses & (1 << VF)) && (!((uses & (1 << CF))))){
-                        //only VF used
-			printf("\t __asm__ volatile(\"bld %%0, 0\" : \"=r\"(temp) : );\n");
-                        printf("\t if(temp){\n \t\t __asm__ volatile(\"sev\");\n\t }else{\n \t\t __asm__ volatile(\"clv\");\n\t }\n");
-                }else if((uses & (1 << CF)) && (!((uses & (1 << VF))))){
-                        //only CF used
-			printf("\t __asm__ volatile(\"bld %%0, 0\" : \"=r\"(temp) : );\n");
-                        printf("\t if(temp){\n \t\t __asm__ volatile(\"sec\");\n\t }else{\n \t\t __asm__ volatile(\"clc\");\n\t }\n");
-                }else{
-			printf("\t if(temp & (1 << 0)){\n\t __asm__ volatile(\"sec\");\n\t }else{\n\t __asm__ volatile(\"clc\");\n\t }\n");
-			printf("\t if(temp & (1 << 3)){\n\t __asm__ volatile(\"sev\");\n\t }else{\n\t __asm__ volatile(\"clv\");\n\t }\n");
-		}
-	}*/
 }
 
 void
@@ -504,44 +449,6 @@ print_ram_or_rriot(void){
 	printf("]");
 }
 /* possible Helper Functions for Programm Execution */
-void
-convert_number_to_bcd(void){
-	printf("int\nconvert_number_to_bcd(int number){\n");
-	printf("}");
-}
-
-void
-convert_bcd_to_number(void){
-	printf("int\nconvert_bcd_to_number(int bcd_number){\n");
-	printf("}");
-}
-
-void
-add(void){
-	printf("int\nadd(uint8_t number, uint8_t add_term){\n");
-	printf("}");
-}
-
-void
-sub(void){
-        printf("int\nsub(uint8_t number, uint8_t add_term){\n");
-        printf("}");
-}
-
-void
-setflag(void){
-	printf("void\nsetflag(int flag, uint8_t value){\n");
-        /*if(value == 0){
-                //clear flag
-                flags &= ~(1 << flag);
-        }else if(value == 1){
-                //set flag
-                flags |= (1 << flag);
-        }else{
-                return;
-        }*/
-	printf("}");
-}
 
 void
 write8(void){
@@ -571,7 +478,6 @@ write8(void){
 void
 read8(void){
 	printf("uint8_t\nread8(uint16_t addr){\n");
-	//TODO OS Functions
 	//m represents RAM
 	printf("\t if((addr >= RAM_MIN) && (addr <= RAM_MAX)){\n");
         printf("\t\t return m[addr];\n");
@@ -591,11 +497,23 @@ read8(void){
 }
 
 void
+setflag(void){
+        printf("void\nsetflag(int flag, uint8_t value){\n");
+	printf("\t if(value == 0){\n");
+        printf("\t\t temp = 1;\n");
+	printf("\t }else{\n");
+	printf("\t\t temp = 0;\n");
+        printf("\t }\n");
+        printf("\t __asm__ volatile(\"bst %%0, %%1\" : \"=r\"(temp) : \"I\"(1));\n");
+        printf("}");
+}
+
+void
 pull8(void){
 	printf("uint8_t\npull8(void){\n");
 	printf("\t rs++;\n");
 	printf("\t return m[0x0100 + rs];\n");
-	printf("}\n");;
+	printf("}\n");
 }
 
 void
@@ -603,12 +521,6 @@ push8(void){
 	printf("void\npush8(uint8_t value){\n");
 	printf("\t write8(0x100+rs, value);\n");
 	printf("\t rs--;\n");
-	printf("}\n");
-}
-
-void
-reset(void){
-	printf("void\nreset(void){\n");
 	printf("}\n");
 }
 
@@ -953,7 +865,6 @@ void BPL(void){ //BPL... Branch on Result Plus (NF == 0)
 }
 
 void BRK(void){ //BRK is a software interrupt
-			      // TODO or should it be implemented as return 0?
 	if(toSet == DEFS){
 		uses = 0;
 		defs = (1 << BF)|(1 << XX)|(1 << IF);
@@ -1103,7 +1014,6 @@ void CPX(void){ //CPX... compare Memory with Index X
 }
 
 void CPY(void){ //CPY... compare Memory with Index Y
-        //printf("CPY:\n");
 	if(toSet == DEFS){
 		defs = (1 << NF) | (1 << ZF) | (1 << CF);
                 uses = 0;
@@ -1290,7 +1200,6 @@ void INX(void){ //Increment Index X by one
 }
 
 void INY(void){ //Increment Index Y by one
-        //printf("INY:\n");
 	if(toSet == DEFS){
 		defs = (1 << NF) | (1 << ZF);
                 uses = 0;
@@ -1315,7 +1224,7 @@ void JMP(void){ //Jump to address
 	}else if(toSet == IR){
 		printf("\t //JMP\n");
 		call_corresponding_addressingMode(m[pc]);
-                if(dynamic == TRUE){
+                if(toSet == DYNAMIC){
                         exit(1);
                 }else{
                         printf("\t cycles += %d;\n", cycles);
@@ -1326,7 +1235,6 @@ void JMP(void){ //Jump to address
 }
 
 void JSR(void){ //Jump to subroutine
-		//TODO Shadow Stack
 	if(toSet == DEFS){
 		defs = 0;
                 uses = 0;
@@ -1341,11 +1249,6 @@ void JSR(void){ //Jump to subroutine
 		//add_used_helper_function(push8);
         }else if(toSet == IR){
 		printf("\t //JSR\n");
-		//TODO pc -> wird nie verwendet
-		//printf("\t pc = pc - 1;\n");
-		//printf("\t push8((pc >> 8));\n");
-		//printf("\t push8((pc & 0x00FF));\n");
-		//printf("\t pc = %d;\n", parameter);
 		call_corresponding_addressingMode(m[pc]);
 		printf("\t cycles += %d;\n", cycles); 
 		printf("\t __asm__ volatile(\"rcall L%x\");\n", parameter);
@@ -1381,7 +1284,6 @@ void LDA(void){ //LDA... Load Accumulator with memory
 		}
 		//to get zero and negative flag
                 set_missing_flags(RA);
-		//printf("\t pc += %d;\n", bytes);
 	}
 }
 
@@ -1413,7 +1315,6 @@ void LDX(void){ //LDX... Load Index X with memory
                 }
 		//to get zero and negative flag
 		set_missing_flags(RX);
-		//printf("\t pc += %d\n", bytes);
 	}
 }
 
@@ -1445,8 +1346,6 @@ void LDY(void){ //LDY... Load Index Y with memory
                 }
 		//to get zero and negative flag
 		set_missing_flags(RY);
-		//printf("\t pc += %d\n", bytes);
-
 	}
 }
 
@@ -1505,7 +1404,6 @@ void NOP(void){
 		if(!optimization){
 			printf("\t __asm__ volatile(\"nop\");\n");
 		}
-		//printf("\t pc += %d\n", bytes);
 	}
 }
 
@@ -1557,15 +1455,12 @@ void PHA(void){ //PusH Accumulator
 		printf("\t //PHA\n");
 		call_corresponding_addressingMode(m[pc]);
 		printf("\t push8(ra);\n");
-		//printf("\t pc += %d;\n", bytes);
 	}
 }
 
 void PHP(void){ //PusH Processor status
-        //printf("PHP:\n");
 	if(toSet == DEFS){
 		defs = 0;
-                //uses = (1 << NF) | (1 << VF) | (1 << DF) | (1 << IF) | (1 << ZF) | (1 << CF);
 		uses = 0;
 		add_used_helper_function(push8);
 		usedRegisters = (1 << RS);
@@ -1577,7 +1472,6 @@ void PHP(void){ //PusH Processor status
 }
 
 void PLA(void){ //PuLl Accumulator
-        //printf("PLA:\n");
 	if(toSet == DEFS){
 		defs = (1 << NF) | (1 << ZF);
                 uses = 0;
@@ -1711,30 +1605,22 @@ void ROR(void){ //ROR... Rotate one Bit right (memory or accumulator)
 }
 
 void RTI(void){ //Return from Interrupt
-		//TODO shadow stack
 	if(toSet == DEFS){
 		defs = (1 << BF);
                 uses = 0;
 		add_used_helper_function(pull8);
         }else if(toSet == IR){
 		printf("__asm__ volatile(\"reti\");\n");
-		/*printf("\t flags = pull8();\n");
-		printf("\t pc = pull8();\n");
-        	printf("\t pc |= (pull8() << 8);\n");*/
 	}
 }
 
 void RTS(void){ // return from subroutine
-		// TODO shadow stack - implement labels for start of subroutine
 	if(toSet == DEFS){
 		defs = 0;
 		uses = 0;
 		//add_used_helper_function(pull8);
         }else if(toSet == IR){
 		printf("\t //RTS\n");
-		/*printf("\t pc = pull8();\n");
-        	printf("\t pc |= (pull8() << 8);\n");
-		printf("\t pc++;\n");*/
 		printf("\t __asm__ volatile(\"ret\");\n");
 	}
 }
@@ -1776,7 +1662,6 @@ void SEC(void){ //SEC... Set Carry Flag
         }else if(toSet == IR){
 		call_corresponding_addressingMode(m[pc]);
 		printf("\t __asm__ volatile(\"sec\");\n");
-		//printf("\t pc += %d;\n", bytes);
 	}
 }
 
@@ -1784,15 +1669,12 @@ void SED(void){ //SED... set decimal flag
 	if(toSet == DEFS){
 		defs = (1 << DF);
                 uses = 0;
-		add_used_helper_function(convert_number_to_bcd);
-		add_used_helper_function(convert_bcd_to_number);
 		add_used_helper_function(setflag);
 		bcd = 1;
         }else if(toSet == IR){
 		//doesn't exist in AVR
 		call_corresponding_addressingMode(m[pc]);
 		printf("\t setflag(DF,1);\n");
-		//printf("\t pc += %d;\n", bytes);
 	}
 }
 
@@ -1800,11 +1682,9 @@ void SEI(void){ //Set Interrupt Disable Status
 	if(toSet == DEFS){
 		defs = (1 << BF);
                 uses = 0;
-	//	add_used_helper_function(setflag);
         }else if(toSet == IR){
 		call_corresponding_addressingMode(m[pc]);
 		printf("\t sei();\n");
-		//printf("\t pc += %d;\n", bytes);
 	}
 }
 
@@ -1818,8 +1698,7 @@ void TAX(void){ // Transfer Accumulator to Index X
         }else if(toSet == IR){
 		call_corresponding_addressingMode(m[pc]);
                 printf("\t __asm__ volatile(\"mov %%0, %%1\" : \"=r\"(rx) : \"r\"(ra));\n");
-                set_missing_flags(RA);
-                //printf("\t pc += %d;\n", bytes);
+                set_missing_flags(RX);
 	}
 }
 
@@ -1831,8 +1710,7 @@ void TAY(void){ // Transfer Accumulator to Index Y
         }else if(toSet == IR){
 		call_corresponding_addressingMode(m[pc]);
                 printf("\t __asm__ volatile(\"mov %%0, %%1\" : \"=r\"(ry) : \"r\"(ra));\n");
-                set_missing_flags(RA);
-                //printf("\t pc += %d;\n", bytes);
+                set_missing_flags(RY);
 	}
 }
 
@@ -1844,8 +1722,7 @@ void TSX(void){ //Transfer Stackpointer to X
         }else if(toSet == IR){
 		call_corresponding_addressingMode(m[pc]);
                 printf("\t __asm__ volatile(\"mov %%0, %%1\" : \"=r\"(rx) : \"r\"(rs));\n");
-                set_missing_flags(RA);
-                //printf("\t pc += %d;\n", bytes);
+                set_missing_flags(RX);
 	}
 }
 
@@ -1858,7 +1735,6 @@ void TXA(void){ // Transfer Index X to  Accumulator
 		call_corresponding_addressingMode(m[pc]);
 		printf("\t __asm__ volatile(\"mov %%0, %%1\" : \"=r\"(ra) : \"r\"(rx));\n");
 		set_missing_flags(RA);
-		//printf("\t pc += %d;\n", bytes);
 	}
 }
 
@@ -1871,7 +1747,6 @@ void TXS(void){ //Transfer X to Stackpointer
 		call_corresponding_addressingMode(m[pc]);
                 printf("\t __asm__ volatile(\"mov %%0, %%1\" : \"=r\"(rs) : \"r\"(rx));\n");
                 set_missing_flags(RA);
-                //printf("\t pc += %d;\n", bytes);
 	}
 }
 
@@ -1884,187 +1759,59 @@ void TYA(void){ // Transfer Index Y to  Accumulator
 		call_corresponding_addressingMode(m[pc]);
                 printf("\t __asm__ volatile(\"mov %%0, %%1\" : \"=r\"(ra) : \"r\"(ry));\n");
                 set_missing_flags(RA);
-                //pr += %d;\n", bytes);
 	}
 }
 
-/* "Illegal" Opcodes */
+/* "Illegal" Opcodes - not supported by translator */
 
 void ALR(void){ //A AND operand + LSR
-        //AND operation
-	printf("ALR:\n");
-        printf("\t r[RA] = r[RA] & parameter;\n");
-        printf("\t setflag(ZF, (r[RA] == 0x00));\n");
-        printf("\t setflag(NF, (r[RA] & (1 << NF)));\n");
-
-        //LSR
-        printf("\t temp = r[RA] >> 1;\n");
-        printf("\t setflag(CF, ((r[RA] & 0x0001) == 0x0000));\n");
-        printf("\t r[RA] = (uint8_t) (temp && 0x00FF);\n");
-	printf("\t goto next_instruction;\n");
 }
 
 void ANC(void){ //A AND operand + set C as ASL
-        //A AND operand
-        printf("ANC:\n");
-	printf("\t r[RA] = r[RA] & parameter;\n");
-        printf("\t setflag(ZF, (r[RA] == 0x00));\n");
-        printf("\t setflag(NF, (r[RA] & (1 << NF)));\n");
-
-        //bit(7) -> C
-        printf("\t setflag(CF, ((r[RA] & 0x80) > 0));\n");
-	printf("\t goto next_instruction;\n");
 }
 
 void ANC2(void){ // A AND operand + set C as ROL
-        //A AND operand
-        printf("ANC2:\n");
-	printf("\t r[RA] = r[RA] & parameter;\n");
-        printf("\t setflag(ZF, (r[RA] == 0x00));\n");
-        printf("\t setflag(NF, (r[RA] & (1 << NF)));\n");
-
-        //bit(7) -> C
-        printf("\t setflag(CF, ((r[RA] & 0x80) > 0));\n");
-        //set C as ROL
-        printf("\t r[RA] |= (flags & (1 << CF));\n");
-	printf("\t goto next_instruction;\n");
 }
 
 void ARR(void){ //A AND operand + ROR
-        //A AND operand
-        printf("ARR:\n");
-	printf("\t r[RA] = r[RA] & parameter;\n");
-        printf("\t setflag(ZF, (r[RA] == 0x00));\n");
-        printf("\t setflag(NF, (r[RA] & (1 << NF)));\n");
-        //set V flag
-        printf("\t uint16_t temp = (r[RA] & parameter) + parameter;\n");
-        printf("\t setflag(ZF, ((temp & 0x80) > 0));\n");
-        //exchange bit 7 with carry
-        printf("\t r[RA] |= ((flags & (1 << CF)) > 0) << 7;\n");
-	printf("\t goto next_instruction;\n");
 }
 
 void DCP(void){ //DEC operand + CMP oper
-        //DEC operand
-        printf("DCR:\n");
-	printf("\t write8(parameter, sub(m[parameter], 1));\n");
-        printf("\t setflag(ZF, (m[parameter] == 0));\n");
-        printf("\t setflag(NF, (r[RA] & (1 << NF)));\n");
-        //CMP to Accumulator
-        printf("\t setflag(CF, (m[parameter] > r[RA]));\n");
-	printf("\t goto next_instruction;\n");
 }
 
 void ISC(void){ //INC operand + SBC operand
-        //INC operand
-        printf("ISC:\n");
-	printf("\t write8(parameter, add(m[parameter], 1));\n");
-        printf("\t setflag(ZF, (m[parameter] == 0));\n");
-        printf("\t setflag(NF, (r[RA] & (1 << NF)));\n");
-        // SBC operand
-        printf("\t r[RA] = r[RA] - m[parameter] - (flags & (1 << CF));\n");
-	printf("\t goto next_instruction;\n");
 }
 
 void LAS(void){ //LDA/TSX operand
-        //M AND SP
-	printf("LAS:\n");
-        printf("\t r[RS] = r[RS] & m[parameter];\n");
-        //TSX
-        printf("\t r[RX] = r[RS];\n");
-	printf("\t goto next_instruction;\n");
 }
 
 void LAX(void){ //LDA operand + LDX operand
-        //LDA
-        printf("LAX:\n");
-	printf("\t r[RA] = m[parameter];\n");
-        //LDX 
-        printf("\t r[RX] = m[parameter];\n");
-        printf("\t setflag(ZF, (r[RX] == 0x00));\n");
-        printf("\t setflag(NF, (r[RX] & (1 << NF)));\n");
-	printf("\t goto next_instruction;\n");
 }
 
 void RLA(void){ //ROL operand + AND operand
-        //M <- ROL
-        printf("RLA:\n");
-	printf("\t setflag(CF, ((r[parameter] & 0x8) > 0));\n");
-        printf("\t temp = (r[parameter] << 1) | (flags & (1 << CF));\n");
-        printf("\t write8(parameter, (uint8_t) (temp & 0xFF));\n");
-        //A AND M -> A
-        printf("\t r[RA] = temp & r[RA];\n");
-        printf("\t setflag(ZF, (r[RA] == 0x00));\n");
-        printf("\t setflag(NF, (r[RA] & (1 << NF)));\n");
-	printf("\t goto next_instruction;\n");
 }
 
 void RRA(void){ //ROR operand + ADC Operand
-        //M <- ROR
-        printf("RRA:\n");
-	printf("\t setflag(CF, ((r[parameter] & 0x1) > 0));\n");
-        printf("\t temp = (r[parameter] >> 1) | ((flags & (1 << CF)) << 7);\n");
-        printf("\t write8(parameter, (uint8_t) (temp & 0xFF));\n");
-        //A + M -> A
-        printf("\t r[RA] = temp + r[RA];\n");
-        printf("\t setflag(ZF, (r[RA] == 0x00));\n");
-        printf("\t setflag(NF, (r[RA] & (1 << NF)));\n");
-	printf("\t goto next_instruction;\n");
 }
 
 void SAX(void){ // A and X are put on bus at the same time -> like A AND X
-        printf("SAX:\n");
-	printf("\t write8(parameter, (r[RA] & r[RX]));\n");
-	printf("\t goto next_instruction;\n");
 }
 
 void SBX(void){ //CMP and DEC at onces
-        //(A AND X) - operand -> X
-        printf("SBX:\n");
-	printf("\t r[RX] = (r[RA] & r[RX]) - parameter;\n");
-        printf("\t setflag(ZF, (r[RX] == 0x00));\n");
-        printf("\t setflag(NF, (r[RX] & (1 << NF)));\n");
-        printf("\t setflag(CF, (r[RX] > parameter));\n");
-	printf("\t goto next_instruction;\n");
 }
 
 void SLO(void){ //ASL operand + ORA operand
-        printf("SLO:\n");
-	printf("\t temp = (m[parameter] << 1);\n");
-        printf("\t write8(parameter, (uint8_t) (temp & 0xFF));\n");
-        printf("\t setflag(CF, ((temp & 0x80) > 0));\n");
-        printf("\t r[RA] = r[RA] | (uint8_t) (temp & 0xFF);\n");
-        printf("\t setflag(ZF, (r[RA] == 0x00));\n");
-        printf("\t setflag(NF, (r[RA] & (1 << NF)));\n");
-	printf("\t goto next_instruction;\n");
 }
 
 void SRE(void){ //LSR operand + EOR operand
-        printf("SRE:\n");
-	printf("\t temp = (m[parameter] >> 1);\n");
-        printf("\t write8(parameter, (uint8_t) (temp & 0xFF));\n");
-        printf("\t setflag(CF, ((temp & 0x01) > 0));\n");
-
-        printf("\t r[RA] = r[RA] ^ (uint8_t) (temp & 0xFF);\n");
-        printf("\t setflag(ZF, (r[RA] == 0x00));\n");
-        printf("\t setflag(NF, (r[RA] & (1 << NF)));\n");
-	printf("\t goto next_instruction;\n");
 }
 
 void USBC(void){ //SBC + NOP
-        printf("USBC:\n");
-	printf("\t r[RA] = r[RA] - parameter - (flags & (1 << CF));\n");
-        printf("\t setflag(ZF, (r[RA] == 0x00));\n");
-        printf("\t setflag(NF, (r[RA] & (1 << NF)));\n");
-
-        //NOP
-        printf("\t pc += 2;\n");
-	printf("\t goto next_instruction;\n");
 }
 
 void JAM(void){ //freeze the CPU with $FF on data bus
-     	printf("JAM:\n");
-	printf("\t return;\n");
+     	printf("//JAM\n");
+	printf("\t return 0;\n");
 }
 
 /* Instructions */
@@ -2107,31 +1854,6 @@ void STA(void){ //STA... store accumulator in memory
                 	printf("%d, ra);\n", parameter);
                 }
 		printf("\t SREG = temp;\n");
-
-                /*if(!((code[m[pc]].addressingMode == 0x5) || (code[m[pc]].addressingMode == 0x0d))){
-                        printf("\t read8(%d);\n", parameter & 0xF);
-                }
-                printf("\t write8(");
-                if((code[m[pc]].addressingMode == 0x5) || (code[m[pc]].addressingMode == 0x0d)){
-                        printf("%d, ra);\n", parameter);
-                }else{
-			call_corresponding_addressingMode(m[pc]);
-                        printf(", ra));\n");
-                        toSet = IR;
-
-                        if((m[pc] == 0x99) || (m[pc] == 0x91)){
-                                //ry added
-                                printf("%d+ry, ra);\n", parameter);
-                        }else if(m[pc] == 0x81){
-                                //indexed_x needs extra treatment - dynamic TODO
-                                printf("%d, ra);\n", parameter);
-                        }else{
-                                //rx added
-                                printf("%d+rx, ra);\n", parameter);
-                        }
-                }*/
-
-		//printf("\t pc += %d;\n", bytes);
 	}
 }
 
@@ -2390,14 +2112,11 @@ void indirect(void){
 			parameter = m[vector] | ((uint16_t) m[vector + 1] << 8);
 			if(!is_in_ROM(parameter)){
 				printf("jump address is in RAM!!!\n");
-			       	dynamic = TRUE;
-			}else{
-				//jump target is static
-				dynamic = FALSE;
+			       	toSet = DYNAMIC;
 			}
 		}else{
 			printf("jump address is in RAM!!!\n");
-			dynamic = TRUE;
+			toSet = DYNAMIC;
 		}
 	}
 	
@@ -2410,8 +2129,6 @@ void indirect_y(void){
 #endif
 		bytes = 2;
 	}else if(toSet == DYNAMIC){
-		//address = m[pc+1];
-        	//parameter = m[address] | (m[address+1] << 8) + ry;
 		printf("(read8(%d) | ((uint16_t) (read8(%d) + 1) << 8)) + ry)", parameter, parameter);
 	}else{
 		parameter = m[pc+1];
@@ -2424,8 +2141,6 @@ void indexed_x(void){ //pointer is modified with x
 	if(toSet == BYTES){
         	bytes = 2;
 	}else if(toSet == DYNAMIC){
-		// address = (m[pc+1] + r[RX]) & 0x00FF;
-        	// parameter = m[address] | (m[address+1] << 8);
 		printf("(read8(%d) + rx) | (((uint16_t) (read8(%d) + rx) + 1) << 8)", parameter, parameter);
 	}else{
 		parameter = m[pc+1];
