@@ -11,7 +11,7 @@ Zum Kompilieren des Emulators sollte das beiliegende Makefile verwendet werden. 
 Der entwickelte echtzeitgewahre statische Binärübersetzer ist im Ordner echtzeit_gewahrer_statischer_binaeruebersetzer zu finden.
 In der Bachelorarbeit wurden verschiedene Möglichkeiten der echtzeitgewahren stattischen Binärübersetzung thematisiert. Da diese auch mit Hilfe des entworfenen echtzeitgewahren statischen Binärübersetzers evaluiert werden sollten, wird für den echtzeitgewahren statischen Binärübersetzer bedingte Kompilierung, sowie ein modularer Ansatz, gewählt.
 
-##### Module
+### Module
 translator.c
 ------------
 Diese Modul enthält analysiert und disassembliert das Binärprogramm und steuert die Codegenerierung. Es enthält auch die Optimierung der Flags und C-Hilfskonstrukte für die AVR-Inline-Assembler-Repräsentation.
@@ -28,7 +28,8 @@ Dieses Modul enthält die AVR-Inline-Assembler Repräsentation. Genauso wie das 
 -------------------
 Diese Headerdatei ist die Schnittstelle zwischen den Repräsentations spezifischen Modulen und dem translator.c Modul. 
 
-##### Compiler Flags
+Compiler Flags
+--------------
 Die -DC Flag sorgt dafür, dass vom Binärübersetzer der Dispatch-Code für Rücksprünge aus Subroutinen für die C-Code Repräsentationen generiert wird. 
 Die -DAVR Flag sorgt für das Einfügen von Labels mittels Inline-Assembler. Diese in den Assembler-Code eingefügten Labels ermöglichen einen Sprung in eine Subroutine für die AVR-Inline-Assembler Repräsentation.
 -DC sollte nur zusammen mit dem C-Code spezifische und -DAVR nur zusammen mit dem AVR-Inline-Assembler spezifischen Modul verwendet werden. 
