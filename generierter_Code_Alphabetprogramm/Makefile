@@ -18,7 +18,7 @@
 ############################################################################
 
 CLOCK        = 16000000UL
-TARGET       = c_optimiert_synchronisiert_mit_wcet
+TARGET       = c_optimiert_synchronisiert_mit_WCET
 SRC          = $(TARGET).c serialCom.c
 AVRDUDE_PORT = /dev/ttyUSB0
 

@@ -823,19 +823,20 @@ main(void){
 	rom_addr = 0;
 	rriot_addr = 0;
 
-	optimization = 1; // 1 optimization, 0 no optimization
+	// 1 == Optimization is applied, 0 == optimization is not applied
+#if OPTIMIZATION
+	optimization = 1;
+#else 
+	optimization = 0;
+#endif
 	
 	/* Alphabet Programm with Delay */
-	//load_program_from_file("abc_300R.bin", 4096, 0xf000);
+	//load_program_from_file("abc_300.bin", 4096, 0xf000);
         
 	/* ABC Test */
-	/*uint8_t test_program[] = {0x18, 0xA9, 0x41, 0x8D, 0x00, 0x8b, 0x69, 0x01, 0xC9, 0x5B, 0x90, 0xF7, 0x00};
+	uint8_t test_program[] = {0x18, 0xA9, 0x41, 0x8D, 0x00, 0x8b, 0x69, 0x01, 0xC9, 0x5B, 0x90, 0xF7, 0x00};
         int size = 13;
-	load_into_memory(test_program, size, 0xf000);*/
-
-	uint8_t test_program[] = {0x20, 0xdc, 0xf6, 0x4c, 0x7f, 0xf6, 0xa2, 0x06, 0x86, 0x48, 0x60};
-	int size = 11;
-	load_into_memory(test_program, size, 0xf6d6);
+	load_into_memory(test_program, size, 0xf000);
 
 	/* analyse binary */
 	uint16_t lastPC = find_leaders_and_branches();
